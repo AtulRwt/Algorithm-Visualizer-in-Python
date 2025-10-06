@@ -1,183 +1,190 @@
-# 📊 Sorting Algorithm Visualizer in Python
+# Algorithm Visualizer Collection
 
-This project implements and **visualizes four classic sorting algorithms** — **Bubble Sort, Quick Sort, Merge Sort, and Radix Sort** using Python and `matplotlib` animation.
+This repository contains a collection of algorithm visualizations implemented in Python. Each visualization helps in understanding how different algorithms work through interactive animations.
 
-Unlike standard implementations, this project can run **multiple algorithms side-by-side in a single execution**, allowing users to **compare performance, execution steps, and visual behavior in real time**.
+## Prerequisites
 
----
-
-## 🧠 Project Overview
-
-The main goal of this project is to combine **algorithm analysis** with **interactive visualization**. By tracking comparisons, swaps, pivots, and merges at each step, this project provides an **educational tool** to observe:
-
-- Internal mechanics of sorting algorithms
-- Relative **execution performance** on the same dataset
-- Visualization of algorithm operations using animated bar charts
-
-This makes it ideal for **learning, teaching, and analyzing sorting strategies**.
-
----
-
-## ⚙️ Implemented Sorting Algorithms
-
-### 🔹 Bubble Sort
-- Iteratively compares adjacent elements.
-- Demonstrates step-by-step **comparisons and swaps**.
-- Simple but inefficient (`O(n²)`).
-
-### 🔹 Quick Sort
-- **Divide-and-conquer** strategy using pivots.
-- Highlights **partitioning and recursive sorting**.
-- Average `O(n log n)` time, worst-case `O(n²)`.
-
-### 🔹 Merge Sort
-- Recursive **divide + merge** approach.
-- Tracks element **copies, comparisons, and merges**.
-- Stable, always `O(n log n)` performance.
-
-### 🔹 Radix Sort
-- Non-comparative, digit-level sorting.
-- Works for **non-negative integers only**.
-- Complexity: `O(nk)` where `k` is number of digits.
-
----
-
-## 🔁 Why Multiple Algorithms Together?
-
-Running all four algorithms **simultaneously** emphasizes their differences:
-
-| Feature | Bubble | Quick | Merge | Radix |
-|--------:|:------:|:-----:|:-----:|:-----:|
-| Complexity | `O(n²)` | `O(n log n)` avg | `O(n log n)` | `O(nk)` |
-| In-place | ✅ | ✅ | ❌ | ✅ |
-| Stable | ✅ | ❌ | ✅ | ✅ |
-| Visualization | Comparisons & swaps | Pivot & partitions | Divide + merge | Digit passes |
-
-Side-by-side execution allows a **direct performance and behavior comparison**.
-
----
-
-## 🧩 Architecture Overview
-
-The Python script is divided into these components:
-
-- **Number Generator**: generates random numbers or reads from a file.
-- **Sorting Implementations**: each algorithm logs its internal operations as a sequence of "states" for visualization.
-- **State Tracker**: stores operations (`compare`, `swap`, `pivot`, `copy`, `copy_back`, `merged`, `digit`, `pass_complete`, `complete`) for animation.
-- **Matplotlib Animation**: subplots display each chosen algorithm in real time.
-
-### Color Legend (Animation)
-
-| Color | Meaning |
-|------|---------|
-| 🟨 Yellow | Comparison (element(s) under comparison) |
-| 🟥 Red | Swap / Copy (elements being swapped or copied) |
-| 🟩 Green | Pivot or merged section |
-| 🟦 Blue | Default / Idle |
-| 🟩 Light Green | Sorted / Pass complete |
-
----
-
-## 📷 Example Visualization
-
-Run the script with:
-
+Before running the visualizations, make sure you have Python installed and the following libraries:
 ```bash
-python py sorting.py --mode random --n 50 --min_val 0 --max_val 100 --algo bubble --algo quick --algo merge --algo radix
+pip install matplotlib networkx numpy
 ```
 
-![Visualization Example](https://github.com/VLSI-Shubh/Sorting-Algorithm-Visualizer-in-Python/blob/4a4e403a2b60c9e2b863971b782066f333d5b99f/images/sorting.gif)
+## Available Visualizations
 
----
+### 1. Sorting Algorithms
+File: `sorting_interactive.py`
 
-## ⚡ Terminal Output
+Features:
+- Multiple sorting algorithms
+- Real-time visualization
+- Customizable array size and range
 
-![Terminal Output](https://github.com/VLSI-Shubh/Sorting-Algorithm-Visualizer-in-Python/blob/4a4e403a2b60c9e2b863971b782066f333d5b99f/images/terminal%20output.png)
+Available algorithms:
+- Bubble Sort
+- Quick Sort
+- Merge Sort
+- Radix Sort
+- Insertion Sort
+- Selection Sort
+- Heap Sort
 
-This output shows **algorithm efficiency**, number of steps, maximum frames for animation, and overall sorting performance comparison.
-
----
-
-## 📊 Performance Summary Table
-
-| Rank | Algorithm    | Steps | Time (ms) |
-|:----:|:-------------|:-----:|:---------:|
-| 1    | Radix Sort   | 153   | 0.07      |
-| 2    | Quick Sort   | 378   | 0.15      |
-| 3    | Merge Sort   | 621   | 0.26      |
-| 4    | Bubble Sort  | 1863  | 2.72      |
-
-- ✅ **Fastest:** Radix Sort (0.07 ms)
-- ❌ **Slowest:** Bubble Sort (2.72 ms)
-
-This table provides an **at-a-glance comparison** of algorithm performance and steps.
-
----
-
-## 📁 Project Files
-
-| File | Description |
-|------|-------------|
-| `sorting.py` | Main Python script with sorting algorithms, state instrumentation, and visualization |
-| `numbers.txt` | Optional input/output file for dataset (one number per line) |
-| `images/` | Example GIFs or PNGs of visualization output  |
-
----
-
-## ▶️ Usage Instructions
-
-Run with command-line arguments:
-
+To run:
 ```bash
-# Randomly generate numbers
-python sorting.py --mode random --n <number_of_elements> --algo <algorithm_names>
-
-# Use numbers from a file
-python sorting.py --mode file --file <file_path> --algo <algorithm_names>
-
-# Customize animation speed (interval in ms)
-python sorting.py --mode random --n <number_of_elements> --algo <algorithm_names> --interval <milliseconds>
-
+python sorting_interactive.py
 ```
 
+Follow the prompts to:
+1. Choose sorting algorithm
+2. Set array size
+3. Define value range
+4. Adjust animation speed
 
-## Command-Line Arguments
+### 2. Graph Traversal Algorithms
+File: `graph_traversal.py`
 
-| Argument | Description |
-|----------|-------------|
-| `--mode` | Input mode: `random` or `file` |
-| `--algo` | Sorting algorithm(s) to visualize (`bubble`, `quick`, `merge`, `radix`) |
-| `--n` | Number of elements (for random mode) |
-| `--min_val` / `--max_val` | Range of generated numbers (for random mode) |
-| `--file` | File path for input/output numbers |
-| `--interval` | Animation frame interval in ms |
+Features:
+- BFS (Breadth-First Search)
+- DFS (Depth-First Search)
+- Interactive graph generation
+- Step-by-step visualization
 
----
+To run:
+```bash
+python graph_traversal.py
+```
 
-## 🛠️ Tools Used
+Follow the prompts to:
+1. Choose traversal algorithm (BFS/DFS)
+2. Set number of nodes and edges
+3. Select start node
+4. Adjust animation speed
 
-| Tool | Purpose |
-|------|---------|
-| **Python 3** | Programming language |
-| **matplotlib** | Visualization and animation |
-| **argparse** | Command-line argument parsing |
-| **time** | Performance measurement |
+### 3. Binary Search
+File: `binary_search.py`
 
----
+Features:
+- Visualization of binary search process
+- Works on sorted arrays
+- Shows search space reduction
 
-## ✅ Conclusion
+To run:
+```bash
+python binary_search.py
+```
 
-This project serves as a **learning resource** and **visual tool** for understanding sorting algorithms:
+Follow the prompts to:
+1. Set array size
+2. Define value range
+3. Enter target value to search
+4. Adjust animation speed
 
-- Shows **internal mechanics** of four classic sorting methods
-- Highlights **trade-offs** between simplicity, speed, and stability
-- Provides **interactive, side-by-side visual comparison** of multiple algorithms
+### 4. Dijkstra's Shortest Path
+File: `dijkstra.py`
 
-It demonstrates how **algorithm choice impacts execution** beyond theoretical complexity.
+Features:
+- Weighted graph visualization
+- Shortest path finding
+- Real-time distance updates
+- Path construction visualization
 
----
+To run:
+```bash
+python dijkstra.py
+```
 
-## 📝 License
+Follow the prompts to:
+1. Set number of nodes and edges
+2. Define weight range
+3. Choose start node
+4. Adjust animation speed
 
-Open for educational and personal use under the [MIT License](https://github.com/VLSI-Shubh/Sorting-Algorithm-Visualizer-in-Python/blob/d3e629a2f03d3fc9f5fcd46af5248b3fbde45c28/License.txt)
+## Color Codes
 
+### Sorting Visualizer
+- Light Blue: Unsorted elements
+- Yellow: Elements being compared
+- Red: Elements being swapped
+- Light Green: Sorted elements
+
+### Graph Traversal
+- Light Blue: Unvisited nodes
+- Red: Current node
+- Yellow: Nodes in queue/stack
+- Green: Visited nodes
+- Green edges: Path taken
+
+### Binary Search
+- Light Blue: Unexamined elements
+- Light Gray: Current search space
+- Red: Middle element
+- Green: Target found
+
+### Dijkstra's Algorithm
+- Light Blue: Unvisited nodes
+- Light Green: Visited nodes
+- Red: Current node
+- Yellow: Node being checked
+- Orange: Node with updated distance
+- Green edges: Shortest paths
+
+## Customization
+
+Each visualization allows you to customize:
+- Input size (number of elements/nodes)
+- Value ranges
+- Animation speed
+- Starting positions (where applicable)
+
+## Example Commands
+
+Here are some example commands with typical parameters:
+
+### Sorting (20 numbers, range 1-100):
+```bash
+python sorting_interactive.py
+# Choose algorithm: 1 (Bubble Sort)
+# Array size: 20
+# Min value: 1
+# Max value: 100
+# Interval: 50
+```
+
+### Graph Traversal (10 nodes, 15 edges):
+```bash
+python graph_traversal.py
+# Choose algorithm: 1 (BFS)
+# Nodes: 10
+# Edges: 15
+# Start node: 0
+# Interval: 1000
+```
+
+### Binary Search (20 numbers):
+```bash
+python binary_search.py
+# Array size: 20
+# Min value: 1
+# Max value: 100
+# Target: 50
+# Interval: 1000
+```
+
+### Dijkstra (8 nodes, weights 1-10):
+```bash
+python dijkstra.py
+# Nodes: 8
+# Edges: 12
+# Min weight: 1
+# Max weight: 10
+# Start node: 0
+# Interval: 1000
+```
+
+## Notes
+
+- All visualizations use matplotlib for rendering
+- Animations can be paused/resumed using matplotlib's interactive controls
+- Window can be resized for better visibility
+- Close the visualization window to end the program
+- Use smaller intervals (e.g., 50ms) for faster animations
+- Use larger intervals (e.g., 1000ms) to better observe the steps
