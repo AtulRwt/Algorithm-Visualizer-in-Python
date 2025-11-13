@@ -30,6 +30,15 @@ class BellmanFordVisualizer:
         self.pos = nx.spring_layout(self.G)
         return self.G
 
+    def set_graph_from_edges(self, n_nodes, edges):
+        self.G.clear()
+        self.G.add_nodes_from(range(n_nodes))
+        for u, v, w in edges:
+            if 0 <= u < n_nodes and 0 <= v < n_nodes and u != v:
+                self.G.add_edge(u, v, weight=int(w))
+        self.pos = nx.spring_layout(self.G)
+        return self.G
+
     def bellman_ford_with_states(self, start=0):
         self.states = []
         self.negative_cycle_edges = []
@@ -97,9 +106,22 @@ class BellmanFordVisualizer:
 
             # Text panel
             ax_text.axis('off')
+            step_header = f"Step {frame + 1} of {len(self.states)}"
+            # Determine action label
+            action = 'Step'
+            if state['iter'] == 'neg':
+                action = 'Check negative cycle'
+            elif state['iter'] == 'done':
+                action = 'Finished'
+            elif state['checking'] is not None and state['updated'] is not None:
+                action = 'Update distance'
+            elif state['checking'] is not None:
+                action = 'Relax edge'
             lines = [
-                "Status:",
-                f"{state['status']}",
+                step_header,
+                f"Action: {action}",
+                "",
+                state['status'],
             ]
             if state['checking'] is not None:
                 u, v = state['checking']
@@ -122,17 +144,19 @@ class BellmanFordVisualizer:
             if self.negative_cycle_edges:
                 lines.extend([
                     "",
-                    "Negative cycle edges detected:",
+                    "Negative cycle edges:",
                     f"{self.negative_cycle_edges}"
                 ])
-            lines.extend([
-                "",
-                "Current distances:",
-            ])
+            dist_line = []
             for node in sorted(self.G.nodes()):
                 val = dists[node]
                 val_str = '∞' if val == float('inf') else int(val)
-                lines.append(f"d[{node}] = {val_str}")
+                dist_line.append(f"d[{node}]={val_str}")
+            lines.extend([
+                "",
+                "Distances:",
+                ", ".join(dist_line)
+            ])
 
             y = 0.95
             for line in lines:
@@ -147,29 +171,60 @@ class BellmanFordVisualizer:
 def get_user_input():
     print("\nBellman–Ford Visualizer")
     print("=======================")
-    while True:
-        try:
-            n_nodes = int(input("\nEnter number of nodes (default 6): ") or "6")
-            n_edges = int(input("Enter number of directed edges (default 10): ") or "10")
-            min_w = int(input("Enter min weight (can be negative, default -5): ") or "-5")
-            max_w = int(input("Enter max weight (default 10): ") or "10")
-            start = int(input(f"Enter start node (0-{n_nodes-1}, default 0): ") or "0")
-            if 0 <= start < n_nodes and n_nodes > 1 and n_edges >= n_nodes - 1 and max_w >= min_w:
+    print("Press Enter to use defaults or choose manual input.")
+    mode = (input("\nMode [D=default, M=manual] [D]: ") or "D").strip().lower()
+    if mode.startswith('m'):
+        while True:
+            try:
+                n_nodes = int(input("\nNodes [6]: ") or "6")
+                start = int(input(f"Start node [0..{n_nodes-1}] [0]: ") or "0")
+                if 0 <= start < n_nodes:
+                    break
+            except ValueError:
+                pass
+            print("Invalid. Try again.")
+        print("Enter directed edges as: u v w  (blank line to finish). Nodes are 0..N-1")
+        edges = []
+        while True:
+            line = input("> ").strip()
+            if not line:
                 break
-        except ValueError:
-            pass
-        print("Invalid values, try again.")
-    interval = int(input("\nEnter animation interval in ms (default 800): ") or "800")
-    return n_nodes, n_edges, min_w, max_w, start, interval
+            try:
+                u, v, w = map(int, line.split())
+                edges.append((u, v, w))
+            except Exception:
+                print("Bad line. Use: u v w")
+        interval = int(input("\nSpeed ms/frame [800]: ") or "800")
+        return { 'mode': 'manual', 'n_nodes': n_nodes, 'start': start, 'edges': edges, 'interval': interval }
+    else:
+        while True:
+            try:
+                n_nodes = int(input("\nNodes [6]: ") or "6")
+                n_edges = int(input("Directed edges [10]: ") or "10")
+                min_w = int(input("Min weight [-5]: ") or "-5")
+                max_w = int(input("Max weight [10]: ") or "10")
+                start = int(input(f"Start node [0..{n_nodes-1}] [0]: ") or "0")
+                if 0 <= start < n_nodes and n_nodes > 1 and n_edges >= n_nodes - 1 and max_w >= min_w:
+                    break
+            except ValueError:
+                pass
+            print("Invalid. Try again.")
+        interval = int(input("\nSpeed ms/frame [800]: ") or "800")
+        return { 'mode': 'default', 'n_nodes': n_nodes, 'n_edges': n_edges, 'min_w': min_w, 'max_w': max_w, 'start': start, 'interval': interval }
 
 
 def main():
-    n_nodes, n_edges, min_w, max_w, start, interval = get_user_input()
+    params = get_user_input()
     vis = BellmanFordVisualizer()
-    G = vis.generate_directed_weighted_graph(n_nodes, n_edges, min_w, max_w)
-    print(f"Generated directed weighted graph with {G.number_of_nodes()} nodes and {G.number_of_edges()} edges")
+    if params['mode'] == 'manual':
+        G = vis.set_graph_from_edges(params['n_nodes'], params['edges'])
+        start = params['start']
+    else:
+        G = vis.generate_directed_weighted_graph(params['n_nodes'], params['n_edges'], params['min_w'], params['max_w'])
+        start = params['start']
+    print(f"Graph: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
     vis.bellman_ford_with_states(start)
-    vis.animate(interval)
+    vis.animate(params['interval'])
 
 
 if __name__ == "__main__":

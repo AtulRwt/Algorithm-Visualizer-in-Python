@@ -79,11 +79,13 @@ class FloydWarshallVisualizer:
 
             ax_text.axis('off')
             k, i, j = state.get('k'), state.get('i'), state.get('j')
-            lines = [
-                "Status:",
-                state['status'],
-            ]
-            if isinstance(k, int) and isinstance(i, int) and isinstance(j, int):
+            lines = []
+            # Header
+            lines.append(f"Step {frame + 1} of {len(self.states)}")
+            # Action label
+            action = 'Start' if k == -1 else ('Finished' if k == len(D) else 'Check cell')
+            lines.append(f"Action: {action}")
+            if isinstance(k, int) and isinstance(i, int) and isinstance(j, int) and 0 <= k < len(D) and 0 <= i < len(D) and 0 <= j < len(D):
                 d_ij = D[i][j]
                 d_ik = D[i][k]
                 d_kj = D[k][j]
@@ -94,11 +96,11 @@ class FloydWarshallVisualizer:
                 alt_str = '∞' if alt == float('inf') else int(alt)
                 lines.extend([
                     "",
-                    "Transition:",
-                    f"k={k}, i={i}, j={j}",
-                    f"Compare d[{i},{j}] vs d[{i},{k}] + d[{k},{j}]",
-                    f"{d_ij_str} vs {d_ik_str} + {d_kj_str} = {alt_str}",
-                    f"Update: {'YES' if alt < d_ij else 'NO'}",
+                    f"Using k={k} as an intermediate",
+                    f"i={i}, j={j}",
+                    f"Current: d[{i},{j}] = {d_ij_str}",
+                    f"Via k: d[{i},{k}] + d[{k},{j}] = {d_ik_str} + {d_kj_str} = {alt_str}",
+                    f"Update? {'YES' if alt < d_ij else 'NO'}",
                 ])
             y = 0.95
             for line in lines:
@@ -112,30 +114,71 @@ class FloydWarshallVisualizer:
 def get_user_input():
     print("\nFloyd–Warshall (APSP) Visualizer")
     print("===============================")
-    while True:
-        try:
-            n = int(input("\nEnter number of nodes (default 6): ") or "6")
-            density = float(input("Enter edge density 0..1 (default 0.5): ") or "0.5")
-            min_w = int(input("Enter min weight (default 1): ") or "1")
-            max_w = int(input("Enter max weight (default 9): ") or "9")
-            if 2 <= n <= 12 and 0 <= density <= 1 and max_w >= min_w:
-                break
-        except ValueError:
-            pass
-        print("Invalid values, try again.")
-    interval = int(input("\nEnter animation interval in ms (default 500): ") or "500")
-    return n, density, min_w, max_w, interval
+    print("Press Enter to use defaults or choose manual input.")
+    mode = (input("\nMode [D=default, M=manual] [D]: ") or "D").strip().lower()
+    if mode.startswith('m'):
+        while True:
+            try:
+                n = int(input("\nNodes [6]: ") or "6")
+                if 2 <= n <= 12:
+                    break
+            except ValueError:
+                pass
+            print("Invalid. Try again.")
+        print("Enter adjacency matrix rows (use 'inf' for no path). Example for 3 nodes: 0 5 inf")
+        D = []
+        for i in range(n):
+            while True:
+                row = input(f"row {i}: ").strip()
+                if not row:
+                    continue
+                toks = row.split()
+                if len(toks) != n:
+                    print(f"Need {n} values")
+                    continue
+                try:
+                    vals = []
+                    for t in toks:
+                        if t.lower() in ('inf', 'infty', 'infinite', '∞'):
+                            vals.append(float('inf'))
+                        else:
+                            vals.append(int(t))
+                    D.append(vals)
+                    break
+                except ValueError:
+                    print("Bad row. Use integers or 'inf'")
+        for i in range(n):
+            D[i][i] = 0
+        interval = int(input("\nSpeed ms/frame [500]: ") or "500")
+        return { 'mode': 'manual', 'D': D, 'interval': interval }
+    else:
+        while True:
+            try:
+                n = int(input("\nNodes [6]: ") or "6")
+                density = float(input("Edge density 0..1 [0.5]: ") or "0.5")
+                min_w = int(input("Min weight [1]: ") or "1")
+                max_w = int(input("Max weight [9]: ") or "9")
+                if 2 <= n <= 12 and 0 <= density <= 1 and max_w >= min_w:
+                    break
+            except ValueError:
+                pass
+            print("Invalid. Try again.")
+        interval = int(input("\nSpeed ms/frame [500]: ") or "500")
+        return { 'mode': 'default', 'n': n, 'density': density, 'min_w': min_w, 'max_w': max_w, 'interval': interval }
 
 
 def main():
-    n, density, min_w, max_w, interval = get_user_input()
+    params = get_user_input()
     vis = FloydWarshallVisualizer()
-    dist0 = vis.generate_graph_matrix(n=n, density=density, min_w=min_w, max_w=max_w, directed=True)
+    if params['mode'] == 'manual':
+        dist0 = params['D']
+    else:
+        dist0 = vis.generate_graph_matrix(n=params['n'], density=params['density'], min_w=params['min_w'], max_w=params['max_w'], directed=True)
     print("Initial distance matrix:")
     for row in dist0:
         print(row)
     vis.floyd_warshall_with_states(dist0)
-    vis.animate(interval)
+    vis.animate(params['interval'])
 
 
 if __name__ == "__main__":

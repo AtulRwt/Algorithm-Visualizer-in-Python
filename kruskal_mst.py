@@ -27,6 +27,15 @@ class KruskalVisualizer:
         self.pos = nx.spring_layout(self.G)
         return self.G
 
+    def set_graph_from_edges(self, n_nodes, edges):
+        self.G.clear()
+        self.G.add_nodes_from(range(n_nodes))
+        for u, v, w in edges:
+            if 0 <= u < n_nodes and 0 <= v < n_nodes and u != v:
+                self.G.add_edge(u, v, weight=int(w))
+        self.pos = nx.spring_layout(self.G)
+        return self.G
+
     def kruskal_with_states(self):
         self.states = []
         parent = {u: u for u in self.G.nodes()}
@@ -154,29 +163,54 @@ class KruskalVisualizer:
 def get_user_input():
     print("\nKruskal's MST Visualizer")
     print("========================")
-    print("Press Enter to use defaults.")
-    while True:
-        try:
-            n_nodes = int(input("\nNodes [8]: ") or "8")
-            n_edges = int(input("Edges [12]: ") or "12")
-            min_w = int(input("Min weight [1]: ") or "1")
-            max_w = int(input("Max weight [10]: ") or "10")
-            if n_nodes > 1 and n_edges >= n_nodes - 1 and max_w >= min_w:
+    print("Press Enter to use defaults or choose manual input.")
+    mode = (input("\nMode [D=default, M=manual] [D]: ") or "D").strip().lower()
+    if mode.startswith('m'):
+        while True:
+            try:
+                n_nodes = int(input("\nNodes [8]: ") or "8")
                 break
-        except ValueError:
-            pass
-        print("Invalid. Try again.")
-    interval = int(input("\nSpeed ms/frame [800]: ") or "800")
-    return n_nodes, n_edges, min_w, max_w, interval
+            except ValueError:
+                print("Invalid. Try again.")
+        print("Enter undirected edges as: u v w  (blank line to finish). Nodes are 0..N-1")
+        edges = []
+        while True:
+            line = input("> ").strip()
+            if not line:
+                break
+            try:
+                u, v, w = map(int, line.split())
+                edges.append((u, v, w))
+            except Exception:
+                print("Bad line. Use: u v w")
+        interval = int(input("\nSpeed ms/frame [800]: ") or "800")
+        return { 'mode': 'manual', 'n_nodes': n_nodes, 'edges': edges, 'interval': interval }
+    else:
+        while True:
+            try:
+                n_nodes = int(input("\nNodes [8]: ") or "8")
+                n_edges = int(input("Edges [12]: ") or "12")
+                min_w = int(input("Min weight [1]: ") or "1")
+                max_w = int(input("Max weight [10]: ") or "10")
+                if n_nodes > 1 and n_edges >= n_nodes - 1 and max_w >= min_w:
+                    break
+            except ValueError:
+                pass
+            print("Invalid. Try again.")
+        interval = int(input("\nSpeed ms/frame [800]: ") or "800")
+        return { 'mode': 'default', 'n_nodes': n_nodes, 'n_edges': n_edges, 'min_w': min_w, 'max_w': max_w, 'interval': interval }
 
 
 def main():
-    n_nodes, n_edges, min_w, max_w, interval = get_user_input()
+    params = get_user_input()
     vis = KruskalVisualizer()
-    G = vis.generate_weighted_graph(n_nodes, n_edges, min_w, max_w)
-    print(f"Generated weighted graph with {G.number_of_nodes()} nodes and {G.number_of_edges()} edges")
+    if params['mode'] == 'manual':
+        G = vis.set_graph_from_edges(params['n_nodes'], params['edges'])
+    else:
+        G = vis.generate_weighted_graph(params['n_nodes'], params['n_edges'], params['min_w'], params['max_w'])
+    print(f"Graph: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
     vis.kruskal_with_states()
-    vis.animate(interval)
+    vis.animate(params['interval'])
 
 
 if __name__ == "__main__":

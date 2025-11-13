@@ -28,6 +28,15 @@ class PrimVisualizer:
         self.pos = nx.spring_layout(self.G)
         return self.G
 
+    def set_graph_from_edges(self, n_nodes, edges):
+        self.G.clear()
+        self.G.add_nodes_from(range(n_nodes))
+        for u, v, w in edges:
+            if 0 <= u < n_nodes and 0 <= v < n_nodes and u != v:
+                self.G.add_edge(u, v, weight=int(w))
+        self.pos = nx.spring_layout(self.G)
+        return self.G
+
     def prim_with_states(self, start=0):
         self.states = []
         visited = set([start])
@@ -86,35 +95,36 @@ class PrimVisualizer:
             ax_text.axis('off')
             mst_weight = sum(self.G[u][v]['weight'] for (u, v) in state['mst']) if state['mst'] else 0
             frontier_str = []
-            for (u, v) in state['frontier']:
+            for (u, v) in state['frontier'][:5]:
                 w = self.G[u][v]['weight']
-                frontier_str.append(f"({u}-{v}, w={w})")
+                frontier_str.append(f"{u}-{v}({w})")
             chosen_txt = '-'
             chosen_w = '-'
             if state['chosen']:
                 cu, cv = state['chosen']
                 chosen_txt = f"{cu}-{cv}"
                 chosen_w = self.G[cu][cv]['weight']
+            status = state['status']
+            action = (
+                'Pick edge' if status.startswith('Choose edge') else
+                'Consider frontier' if 'frontier' in status.lower() else
+                'Start' if status.startswith('Start') else
+                'Finished' if 'complete' in status.lower() else 'Step'
+            )
             lines = [
-                "Status:",
-                state['status'],
+                f"Step {frame + 1} of {len(self.states)}",
+                f"Action: {action}",
                 "",
-                "Visited:",
-                f"{sorted(list(state['visited']))}",
+                f"Visited: {sorted(list(state['visited']))}",
+                f"Frontier count: {len(state['frontier'])}",
+                ("Frontier: " + ", ".join(frontier_str)) if frontier_str else "Frontier: (none)",
                 "",
-                "Frontier (candidate edges):",
-                ", ".join(frontier_str) if frontier_str else "(none)",
+                f"Chosen: {chosen_txt} (w={chosen_w})",
+                f"MST edges: {state['mst']}",
+                f"MST total weight: {mst_weight}",
                 "",
-                "Chosen Edge:",
-                f"Edge: {chosen_txt}  Weight: {chosen_w}",
-                "",
-                "MST So Far:",
-                f"Edges: {state['mst']}",
-                f"Total Weight: {mst_weight}",
-                "",
-                "Rule:",
-                "Always pick the minimum-weight edge crossing",
-                "the cut between visited and unvisited nodes."
+                "Rule: pick the minimum-weight edge that connects",
+                "a visited node to an unvisited node",
             ]
             y = 0.95
             for line in lines:
@@ -129,29 +139,60 @@ class PrimVisualizer:
 def get_user_input():
     print("\nPrim's MST Visualizer")
     print("=====================")
-    while True:
-        try:
-            n_nodes = int(input("\nEnter number of nodes (default 8): ") or "8")
-            n_edges = int(input("Enter number of edges (default 12): ") or "12")
-            min_w = int(input("Enter min weight (default 1): ") or "1")
-            max_w = int(input("Enter max weight (default 10): ") or "10")
-            start = int(input(f"Enter start node (0-{n_nodes-1}, default 0): ") or "0")
-            if 0 <= start < n_nodes and n_nodes > 1 and n_edges >= n_nodes - 1 and max_w >= min_w:
+    print("Press Enter to use defaults or choose manual input.")
+    mode = (input("\nMode [D=default, M=manual] [D]: ") or "D").strip().lower()
+    if mode.startswith('m'):
+        while True:
+            try:
+                n_nodes = int(input("\nNodes [8]: ") or "8")
+                start = int(input(f"Start node [0..{n_nodes-1}] [0]: ") or "0")
+                if 0 <= start < n_nodes:
+                    break
+            except ValueError:
+                pass
+            print("Invalid. Try again.")
+        print("Enter undirected edges as: u v w  (blank line to finish). Nodes are 0..N-1")
+        edges = []
+        while True:
+            line = input("> ").strip()
+            if not line:
                 break
-        except ValueError:
-            pass
-        print("Invalid values, try again.")
-    interval = int(input("\nEnter animation interval in ms (default 800): ") or "800")
-    return n_nodes, n_edges, min_w, max_w, start, interval
+            try:
+                u, v, w = map(int, line.split())
+                edges.append((u, v, w))
+            except Exception:
+                print("Bad line. Use: u v w")
+        interval = int(input("\nSpeed ms/frame [800]: ") or "800")
+        return { 'mode': 'manual', 'n_nodes': n_nodes, 'start': start, 'edges': edges, 'interval': interval }
+    else:
+        while True:
+            try:
+                n_nodes = int(input("\nNodes [8]: ") or "8")
+                n_edges = int(input("Edges [12]: ") or "12")
+                min_w = int(input("Min weight [1]: ") or "1")
+                max_w = int(input("Max weight [10]: ") or "10")
+                start = int(input(f"Start node [0..{n_nodes-1}] [0]: ") or "0")
+                if 0 <= start < n_nodes and n_nodes > 1 and n_edges >= n_nodes - 1 and max_w >= min_w:
+                    break
+            except ValueError:
+                pass
+            print("Invalid. Try again.")
+        interval = int(input("\nSpeed ms/frame [800]: ") or "800")
+        return { 'mode': 'default', 'n_nodes': n_nodes, 'n_edges': n_edges, 'min_w': min_w, 'max_w': max_w, 'start': start, 'interval': interval }
 
 
 def main():
-    n_nodes, n_edges, min_w, max_w, start, interval = get_user_input()
+    params = get_user_input()
     vis = PrimVisualizer()
-    G = vis.generate_weighted_graph(n_nodes, n_edges, min_w, max_w)
-    print(f"Generated weighted graph with {G.number_of_nodes()} nodes and {G.number_of_edges()} edges")
+    if params['mode'] == 'manual':
+        G = vis.set_graph_from_edges(params['n_nodes'], params['edges'])
+        start = params['start']
+    else:
+        G = vis.generate_weighted_graph(params['n_nodes'], params['n_edges'], params['min_w'], params['max_w'])
+        start = params['start']
+    print(f"Graph: {G.number_of_nodes()} nodes, {G.number_of_edges()} edges")
     vis.prim_with_states(start)
-    vis.animate(interval)
+    vis.animate(params['interval'])
 
 
 if __name__ == "__main__":

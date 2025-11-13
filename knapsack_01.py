@@ -78,11 +78,20 @@ class KnapsackVisualizer:
                 spine.set_visible(False)
 
             ax_text.axis('off')
+            # Header and context
+            step_header = f"Step {frame + 1} of {len(self.states)}"
+            action = 'Step'
+            if state.get('sel') is not None:
+                action = 'Show final selection'
+            elif state.get('i') == 0:
+                action = 'Initialize table'
+            elif state.get('i') is not None:
+                action = 'Fill cell'
             lines = [
-                "Status:",
-                state['status'],
+                step_header,
+                f"Action: {action}",
                 "",
-                f"Items (w,v): {self.items}",
+                f"Items: {self.items}",
                 f"Capacity: {self.capacity}",
             ]
             i = state.get('i')
@@ -91,14 +100,14 @@ class KnapsackVisualizer:
                 wt, val = self.items[i - 1]
                 excl = dp[i - 1][w]
                 incl = '-' if wt > w else dp[i - 1][w - wt] + val
+                include_str = f"N/A (wt>{w})" if wt > w else f"{dp[i-1][w-wt]}+{val}={incl}"
                 lines.extend([
                     "",
-                    "Transition:",
-                    f"i={i}, w={w}",
-                    f"Option EXCLUDE: dp[{i-1}][{w}] = {excl}",
-                    f"Option INCLUDE: {('N/A (wt>'+str(w)+')' if wt > w else f'dp[{i-1}][{w-wt}] + {val} = {incl}')}",
+                    f"Cell: i={i}, w={w}",
+                    f"Exclude: {excl}",
+                    f"Include: {include_str}",
                     f"Choice: {state.get('choice','-')}",
-                    f"dp[{i}][{w}] = {dp[i][w]}",
+                    f"Result dp[{i}][{w}] = {dp[i][w]}",
                 ])
             if state.get('sel') is not None:
                 sel = state['sel']
@@ -110,10 +119,10 @@ class KnapsackVisualizer:
                     total_wt = 0
                 lines.extend([
                     "",
-                    "Final Selection:",
-                    f"Indices: {sel}",
-                    f"Total Weight: {total_wt}",
-                    f"Total Value: {total_val}",
+                    "Final:",
+                    f"Items: {sel}",
+                    f"Total weight: {total_wt}",
+                    f"Total value: {total_val}",
                 ])
             y = 0.95
             for line in lines:
@@ -128,36 +137,67 @@ class KnapsackVisualizer:
 def get_user_input():
     print("\n0/1 Knapsack Visualizer")
     print("=======================")
+    print("Press Enter to use defaults or choose manual input.")
+    mode = (input("\nMode [D=default, M=manual] [D]: ") or "D").strip().lower()
+    if mode.startswith('m'):
+        print("Enter items as: weight value  (blank line to finish)")
+        items = []
+        while True:
+            line = input("> ").strip()
+            if not line:
+                break
+            try:
+                w, v = map(int, line.split())
+                items.append((w, v))
+            except Exception:
+                print("Bad line. Use: weight value")
+        cap = input("\nCapacity [required]: ").strip()
+        capacity = None
+        try:
+            capacity = int(cap)
+        except ValueError:
+            capacity = None
+        if capacity is None or not items:
+            print("Need at least one item and a numeric capacity. Falling back to default mode.")
+            mode = 'd'
+        else:
+            interval = int(input("\nSpeed ms/frame [200]: ") or "200")
+            return { 'mode': 'manual', 'items': items, 'capacity': capacity, 'interval': interval }
+    # default mode
     while True:
         try:
-            n = int(input("\nEnter number of items (default 6): ") or "6")
-            wmin = int(input("Enter min item weight (default 1): ") or "1")
-            wmax = int(input("Enter max item weight (default 10): ") or "10")
-            vmin = int(input("Enter min item value (default 1): ") or "1")
-            vmax = int(input("Enter max item value (default 20): ") or "20")
+            n = int(input("\nItems [6]: ") or "6")
+            wmin = int(input("Min weight [1]: ") or "1")
+            wmax = int(input("Max weight [10]: ") or "10")
+            vmin = int(input("Min value [1]: ") or "1")
+            vmax = int(input("Max value [20]: ") or "20")
             if 1 <= n <= 15 and wmax >= wmin and vmax >= vmin:
                 break
         except ValueError:
             pass
-        print("Invalid values, try again.")
-    cap = input("\nEnter knapsack capacity (blank for auto): ").strip()
+        print("Invalid. Try again.")
+    cap = input("\nCapacity [auto]: ").strip()
     capacity = None
     if cap:
         try:
             capacity = int(cap)
         except ValueError:
             capacity = None
-    interval = int(input("\nEnter animation interval in ms (default 200): ") or "200")
-    return n, wmin, wmax, vmin, vmax, capacity, interval
+    interval = int(input("\nSpeed ms/frame [200]: ") or "200")
+    return { 'mode': 'default', 'n': n, 'wmin': wmin, 'wmax': wmax, 'vmin': vmin, 'vmax': vmax, 'capacity': capacity, 'interval': interval }
 
 
 def main():
-    n, wmin, wmax, vmin, vmax, capacity, interval = get_user_input()
+    params = get_user_input()
     vis = KnapsackVisualizer()
-    items, cap = vis.generate_items(n=n, wmin=wmin, wmax=wmax, vmin=vmin, vmax=vmax, capacity=capacity)
+    if params['mode'] == 'manual':
+        items = params['items']
+        cap = params['capacity']
+    else:
+        items, cap = vis.generate_items(n=params['n'], wmin=params['wmin'], wmax=params['wmax'], vmin=params['vmin'], vmax=params['vmax'], capacity=params['capacity'])
     dp, sel = vis.knapsack_with_states(items, cap)
     print(f"Items (w,v): {items}\nCapacity: {cap}\nSelected item indices: {sel}")
-    vis.animate(interval)
+    vis.animate(params['interval'])
 
 
 if __name__ == "__main__":
