@@ -11,6 +11,19 @@ matplotlib.use('TkAgg')
 
 class DijkstraVisualizer:
     def __init__(self):
+        # Initialize graph
+        self.G = nx.Graph()
+        self.pos = None
+        self.states = []
+        self.root = None
+        self.main_frame = None
+        self.fig = None
+        self.ax = None
+        self.canvas = None
+        self.text_widget = None
+
+    def initialize_gui(self):
+        """Initialize the GUI components after getting user input."""
         # Create the main window
         self.root = tk.Tk()
         self.root.title("Dijkstra's Algorithm Visualization")
@@ -24,44 +37,58 @@ class DijkstraVisualizer:
         self.ax = self.fig.add_subplot(111)
         
         # Embed matplotlib figure in tkinter
-        from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.main_frame)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
         # Create text frame for explanations
-        self.text_frame = ttk.Frame(self.main_frame)
-        self.text_frame.pack(side=tk.RIGHT, fill=tk.BOTH)
+        text_frame = ttk.Frame(self.main_frame)
+        text_frame.pack(side=tk.RIGHT, fill=tk.BOTH)
         
         # Create scrolled text widget
-        self.text_widget = tk.Text(self.text_frame, wrap=tk.WORD, width=50)
-        self.scrollbar = ttk.Scrollbar(self.text_frame, orient=tk.VERTICAL, command=self.text_widget.yview)
-        self.text_widget.configure(yscrollcommand=self.scrollbar.set)
+        self.text_widget = tk.Text(text_frame, wrap=tk.WORD, width=50)
+        scrollbar = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=self.text_widget.yview)
+        self.text_widget.configure(yscrollcommand=scrollbar.set)
         
         self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        # Initialize graph
-        self.G = nx.Graph()
-        self.pos = None
-        self.states = []
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
 
-    def generate_weighted_graph(self, n_nodes=8, n_edges=12, min_weight=1, max_weight=10):
-        """Generate a random connected weighted graph."""
-        while True:
-            edges = [(i, i+1) for i in range(n_nodes-1)]
-            possible_edges = [(i, j) for i in range(n_nodes) for j in range(i+1, n_nodes)]
-            possible_edges = [e for e in possible_edges if e not in edges]
-            additional_edges = random.sample(possible_edges, min(n_edges - (n_nodes-1), len(possible_edges)))
-            edges.extend(additional_edges)
-            
-            self.G.clear()
-            for edge in edges:
-                weight = random.randint(min_weight, max_weight)
-                self.G.add_edge(edge[0], edge[1], weight=weight)
-            
-            if nx.is_connected(self.G):
-                break
+    def create_weighted_graph(self, n_nodes):
+        """Create a graph with user-input weights."""
+        self.G.clear()
+        print("\nEnter the weights for each edge (0 for no edge):")
+        print("Example: For edge 0-1, weight 5, enter '5' when prompted")
+        
+        # Create adjacency matrix with user input
+        adj_matrix = []
+        for i in range(n_nodes):
+            row = []
+            for j in range(n_nodes):
+                if i == j:
+                    row.append(0)
+                elif j > i:
+                    while True:
+                        try:
+                            weight = int(input(f"Enter weight for edge {i}-{j} (0 for no edge): "))
+                            if weight >= 0:
+                                break
+                            print("Weight must be non-negative!")
+                        except ValueError:
+                            print("Please enter a valid number!")
+                    row.append(weight)
+                else:
+                    row.append(adj_matrix[j][i])  # Mirror the matrix
+            adj_matrix.append(row)
+            print(f"Current matrix row {i}:", row)
+        
+        # Create edges from adjacency matrix
+        for i in range(n_nodes):
+            for j in range(i + 1, n_nodes):
+                if adj_matrix[i][j] > 0:
+                    self.G.add_edge(i, j, weight=adj_matrix[i][j])
+        
+        if not nx.is_connected(self.G):
+            print("\nWarning: The graph is not connected! Some nodes may be unreachable.")
         
         self.pos = nx.spring_layout(self.G)
         return self.G
@@ -179,6 +206,24 @@ class DijkstraVisualizer:
         self.text_widget.insert(tk.END, "Dijkstra's Algorithm Status\n")
         self.text_widget.insert(tk.END, "=" * 40 + "\n\n")
         
+        # Add adjacency matrix
+        self.text_widget.insert(tk.END, "Adjacency Matrix:\n")
+        self.text_widget.insert(tk.END, "-" * 20 + "\n")
+        n_nodes = len(self.G.nodes())
+        # Header row
+        self.text_widget.insert(tk.END, "   ")
+        for j in range(n_nodes):
+            self.text_widget.insert(tk.END, f"{j:3}")
+        self.text_widget.insert(tk.END, "\n")
+        # Matrix rows
+        for i in range(n_nodes):
+            self.text_widget.insert(tk.END, f"{i:2}")
+            for j in range(n_nodes):
+                weight = self.G.get_edge_data(i, j, {'weight': 0})['weight'] if self.G.has_edge(i, j) else 0
+                self.text_widget.insert(tk.END, f"{weight:3}")
+            self.text_widget.insert(tk.END, "\n")
+        self.text_widget.insert(tk.END, "\n")
+        
         # Add current status
         self.text_widget.insert(tk.END, "Current Status:\n")
         self.text_widget.insert(tk.END, "-" * 20 + "\n")
@@ -229,6 +274,10 @@ class DijkstraVisualizer:
 
     def animate(self, interval=1000):
         """Create animation of Dijkstra's algorithm."""
+        # Initialize GUI if not already initialized
+        if self.root is None:
+            self.initialize_gui()
+            
         def update(frame):
             self.ax.clear()
             state = self.states[frame]
@@ -308,18 +357,33 @@ def get_user_input():
     
     while True:
         try:
-            n_nodes = int(input("\nEnter number of nodes (default 8): ") or "8")
-            n_edges = int(input("Enter number of edges (default 12): ") or "12")
-            min_weight = int(input("Enter minimum edge weight (default 1): ") or "1")
-            max_weight = int(input("Enter maximum edge weight (default 10): ") or "10")
-            
-            if (n_nodes > 0 and n_edges >= n_nodes - 1 and 
-                min_weight > 0 and max_weight >= min_weight):
+            n_nodes = int(input("\nEnter number of nodes (2-10): "))
+            if 2 <= n_nodes <= 10:
                 break
-            print("Invalid values! Please check your input.")
+            print("Please enter a number between 2 and 10.")
         except ValueError:
-            print("Please enter valid numbers!")
+            print("Please enter a valid number!")
     
+    return n_nodes
+
+def main():
+    print("\nWelcome to Dijkstra's Algorithm Visualizer")
+    print("====================================")
+    
+    # Get user input for number of nodes
+    n_nodes = get_user_input()
+    
+    # Create and set up the visualizer
+    visualizer = DijkstraVisualizer()
+    
+    # Create graph with user input weights
+    print("\nNow you'll enter the weights for the graph edges.")
+    print("Use 0 for no connection between nodes.")
+    print("Example: Weight 5 between nodes 0 and 1 means the distance is 5.\n")
+    
+    G = visualizer.create_weighted_graph(n_nodes)
+    
+    # Get start node
     while True:
         try:
             start_node = int(input(f"\nEnter start node (0-{n_nodes-1}, default 0): ") or "0")
@@ -329,6 +393,7 @@ def get_user_input():
         except ValueError:
             print("Please enter a valid number!")
     
+    # Get animation speed
     while True:
         try:
             interval = int(input("\nEnter animation interval in ms (default 1000): ") or "1000")
@@ -338,18 +403,7 @@ def get_user_input():
         except ValueError:
             print("Please enter a valid number!")
     
-    return n_nodes, n_edges, min_weight, max_weight, start_node, interval
-
-def main():
-    # Get user input
-    n_nodes, n_edges, min_weight, max_weight, start_node, interval = get_user_input()
-    
-    # Create and set up the visualizer
-    visualizer = DijkstraVisualizer()
-    G = visualizer.generate_weighted_graph(n_nodes, n_edges, min_weight, max_weight)
-    
-    print(f"\nGenerated a random weighted graph with {G.number_of_nodes()} nodes and {G.number_of_edges()} edges")
-    print(f"Edge weights range from {min_weight} to {max_weight}")
+    print(f"\nCreated a graph with {G.number_of_nodes()} nodes and {G.number_of_edges()} edges")
     print(f"\nStarting Dijkstra's algorithm from node {start_node}")
     
     # Run Dijkstra's algorithm and create visualization

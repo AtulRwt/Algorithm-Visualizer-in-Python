@@ -3,14 +3,86 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import random
 from collections import deque
+import tkinter as tk
+from tkinter import ttk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib
+matplotlib.use('TkAgg')
 
 class GraphTraversalVisualizer:
     def __init__(self):
         self.G = nx.Graph()
         self.pos = None
-        self.fig, self.ax = plt.subplots(figsize=(15, 10))
         self.states = []
         
+        # Create main window
+        self.root = tk.Tk()
+        self.root.title("Graph Traversal Visualization")
+        
+        # Create main frame
+        self.main_frame = ttk.Frame(self.root)
+        self.main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Create matplotlib figure
+        self.fig = plt.figure(figsize=(15, 10))
+        
+        # Embed matplotlib figure in tkinter
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.main_frame)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # Create text frame with scrollbar
+        self.text_frame = ttk.Frame(self.main_frame)
+        self.text_frame.pack(side=tk.RIGHT, fill=tk.BOTH)
+        
+        # Create scrolled text widget
+        self.text_widget = tk.Text(self.text_frame, wrap=tk.WORD, width=50)
+        self.scrollbar = ttk.Scrollbar(self.text_frame, orient=tk.VERTICAL, command=self.text_widget.yview)
+        self.text_widget.configure(yscrollcommand=self.scrollbar.set)
+        
+        self.text_widget.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+    def create_user_graph(self, n_nodes):
+        """Create a graph with user-input connections."""
+        self.G.clear()
+        print("\nEnter connections between nodes (1 for connection, 0 for no connection):")
+        print("Example: For connection between nodes 0 and 1, enter '1' when prompted")
+        
+        # Create adjacency matrix with user input
+        adj_matrix = []
+        for i in range(n_nodes):
+            row = []
+            for j in range(n_nodes):
+                if i == j:
+                    row.append(0)
+                elif j > i:
+                    while True:
+                        try:
+                            conn = int(input(f"Connect nodes {i}-{j}? (1/0): "))
+                            if conn in [0, 1]:
+                                break
+                            print("Please enter 0 or 1!")
+                        except ValueError:
+                            print("Please enter a valid number!")
+                    row.append(conn)
+                else:
+                    row.append(adj_matrix[j][i])  # Mirror the matrix
+            adj_matrix.append(row)
+            print(f"Current connections for node {i}:", row)
+        
+        # Create edges from adjacency matrix
+        for i in range(n_nodes):
+            for j in range(i + 1, n_nodes):
+                if adj_matrix[i][j] == 1:
+                    self.G.add_edge(i, j)
+        
+        if not nx.is_connected(self.G):
+            print("\nWarning: The graph is not connected! Some nodes may be unreachable.")
+        
+        self.pos = nx.spring_layout(self.G)
+        return self.G
+
     def generate_random_graph(self, n_nodes=10, n_edges=15):
         """Generate a random connected graph."""
         # Create a random connected graph
@@ -247,19 +319,61 @@ class GraphTraversalVisualizer:
             states = self.dfs_with_states(start_node)
             title = 'Depth-First Search (DFS)'
             data_structure = 'Stack'
+            
+        # Set window title
+        self.root.title(f"Graph Traversal Visualization - {title}")
+        
+        # Configure the text widget
+        self.text_widget.config(font=('Courier', 10))
         
         def update(frame):
             self.fig.clear()
             state = states[frame]
             
-            # Create subplots for graph and explanation
-            gs = self.fig.add_gridspec(1, 2, width_ratios=[2, 1])
-            ax_graph = self.fig.add_subplot(gs[0])
-            ax_text = self.fig.add_subplot(gs[1])
+            # Create subplots for graph, matrix and explanation
+            gs = self.fig.add_gridspec(2, 2, height_ratios=[2, 1], width_ratios=[2, 1])
+            ax_graph = self.fig.add_subplot(gs[0, 0])  # Graph in top-left
+            ax_text = self.fig.add_subplot(gs[:, 1])   # Text spans right side
+            ax_matrix = self.fig.add_subplot(gs[1, 0]) # Matrix in bottom-left
             
             # Draw the graph
             edge_colors = ['lightgray' for _ in self.G.edges()]
             nx.draw_networkx_edges(self.G, self.pos, edge_color=edge_colors, ax=ax_graph)
+            
+            # Draw adjacency matrix
+            ax_matrix.clear()
+            ax_matrix.set_title("Adjacency Matrix")
+            n_nodes = len(list(self.G.nodes()))  # Get actual nodes
+            nodes_list = sorted(list(self.G.nodes()))  # Get sorted list of nodes
+            node_to_index = {node: i for i, node in enumerate(nodes_list)}  # Map nodes to indices
+            
+            # Create matrix with correct dimensions
+            matrix = [[0 for _ in range(n_nodes)] for _ in range(n_nodes)]
+            
+            # Fill matrix using node mapping
+            for edge in self.G.edges():
+                i, j = edge
+                idx1, idx2 = node_to_index[i], node_to_index[j]
+                matrix[idx1][idx2] = 1
+                matrix[idx2][idx1] = 1  # Undirected graph
+            
+            # Plot matrix
+            im = ax_matrix.imshow(matrix, cmap='Blues')
+            
+            # Add matrix labels
+            for i in range(n_nodes):
+                for j in range(n_nodes):
+                    text = ax_matrix.text(j, i, matrix[i][j],
+                                        ha="center", va="center",
+                                        color="black" if matrix[i][j] == 0 else "white")
+            
+            # Add row and column labels
+            ax_matrix.set_xticks(range(n_nodes))
+            ax_matrix.set_yticks(range(n_nodes))
+            ax_matrix.set_xticklabels(nodes_list)
+            ax_matrix.set_yticklabels(nodes_list)
+            ax_matrix.set_xlabel("To Node")
+            ax_matrix.set_ylabel("From Node")
             
             # Draw path edges in green
             if state['edges_in_path']:
@@ -384,11 +498,11 @@ class GraphTraversalVisualizer:
                     "  unvisited neighbors remain"
                 ])
             
-            # Display the explanation text
-            y_pos = 0.95
+            # Update the text widget
+            self.text_widget.delete(1.0, tk.END)
             for line in explanation:
-                ax_text.text(0.05, y_pos, line, fontsize=10, fontfamily='monospace')
-                y_pos -= 0.04
+                self.text_widget.insert(tk.END, line + '\n')
+            self.text_widget.see(1.0)  # Scroll to top
             
             ax_graph.axis('off')
         
@@ -396,7 +510,9 @@ class GraphTraversalVisualizer:
         anim = animation.FuncAnimation(self.fig, update, frames=len(states),
                                      interval=interval, repeat=False)
         plt.tight_layout()
-        plt.show()
+        
+        # Start the tkinter main loop
+        self.root.mainloop()
 
 def get_user_input():
     print("\nGraph Traversal Visualizer")
@@ -413,14 +529,32 @@ def get_user_input():
             break
         print("Invalid choice! Please enter 1 or 2.")
     
+    # Get graph creation mode
+    while True:
+        print("\nChoose graph creation mode:")
+        print("1. Random graph")
+        print("2. Create your own graph")
+        mode_choice = input("Enter (1/2): ").strip()
+        if mode_choice in ['1', '2']:
+            mode = 'random' if mode_choice == '1' else 'user'
+            break
+        print("Invalid choice! Please enter 1 or 2.")
+    
     # Get graph parameters
     while True:
         try:
-            n_nodes = int(input("\nEnter number of nodes (default 10): ") or "10")
-            n_edges = int(input("Enter number of edges (default 15): ") or "15")
-            if n_nodes > 0 and n_edges >= n_nodes - 1:
-                break
-            print("Invalid values! Number of edges must be at least (nodes - 1) for a connected graph.")
+            if mode == 'random':
+                n_nodes = int(input("\nEnter number of nodes (default 10): ") or "10")
+                n_edges = int(input("Enter number of edges (default 15): ") or "15")
+                if n_nodes > 0 and n_edges >= n_nodes - 1:
+                    break
+                print("Invalid values! Number of edges must be at least (nodes - 1) for a connected graph.")
+            else:
+                n_nodes = int(input("\nEnter number of nodes (2-10): "))
+                if 2 <= n_nodes <= 10:
+                    n_edges = None  # Not needed for user input mode
+                    break
+                print("Please enter a number between 2 and 10.")
         except ValueError:
             print("Please enter valid numbers!")
     
@@ -444,17 +578,23 @@ def get_user_input():
         except ValueError:
             print("Please enter a valid number!")
     
-    return algorithm, n_nodes, n_edges, start_node, interval
+    return algorithm, mode, n_nodes, n_edges, start_node, interval
 
 def main():
     # Get user input
-    algorithm, n_nodes, n_edges, start_node, interval = get_user_input()
+    algorithm, mode, n_nodes, n_edges, start_node, interval = get_user_input()
     
     # Create and set up the visualizer
     visualizer = GraphTraversalVisualizer()
-    G = visualizer.generate_random_graph(n_nodes, n_edges)
     
-    print(f"\nGenerated a random connected graph with {G.number_of_nodes()} nodes and {G.number_of_edges()} edges")
+    if mode == 'random':
+        G = visualizer.generate_random_graph(n_nodes, n_edges)
+        print(f"\nGenerated a random connected graph with {G.number_of_nodes()} nodes and {G.number_of_edges()} edges")
+    else:
+        print("\nNow you'll create your own graph structure.")
+        print("Enter 1 if two nodes should be connected, 0 if not.")
+        G = visualizer.create_user_graph(n_nodes)
+        print(f"\nCreated graph with {G.number_of_nodes()} nodes and {G.number_of_edges()} edges")
     
     if algorithm.lower() == 'bfs':
         print("\nBFS Characteristics:")
